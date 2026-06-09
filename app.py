@@ -180,7 +180,7 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
 """
     try:
         msg = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-3.5-sonnet-20241022",
             max_tokens=1500,
             messages=[
                 {
@@ -302,7 +302,7 @@ with tab2:
         client = get_anthropic_client()
         with st.spinner("חושב..."):
             response = client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-3.5-sonnet-20241022",
                 max_tokens=1000,
                 system=system_prompt,
                 messages=st.session_state.chat_history,
