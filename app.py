@@ -171,7 +171,7 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
     try:
         from google.genai import types
         response = client.models.generate_content(
-            model='gemini-2.0-flash',
+            model='gemini-2.0-flash-lite',
             contents=[
                 prompt,
                 types.Part.from_bytes(data=base64.b64decode(b64), mime_type=mime)
@@ -281,7 +281,7 @@ with tab2:
             client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
             full_prompt = system_prompt + "\n\nשאלת המשתמש: " + user_input
             response = client.models.generate_content(
-                model='gemini-2.0-flash',
+                model='gemini-2.0-flash-lite',
                 contents=full_prompt
             )
             bot_reply = response.text
