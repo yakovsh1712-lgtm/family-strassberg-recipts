@@ -169,11 +169,14 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
     """
 
     try:
+        from google.genai import types
         response = client.models.generate_content(
             model='gemini-1.5-flash',
-            contents=[prompt, {"mime_type": mime, "data": b64}]
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=base64.b64decode(b64), mime_type=mime)
+            ]
         )
-
         import json, re
         raw = response.text.strip()
         raw = re.sub(r"^```[a-z]*\n?", "", raw).rstrip("`").strip()
