@@ -177,14 +177,19 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
                 types.Part.from_bytes(data=base64.b64decode(b64), mime_type=mime)
             ]
         )
-        import json, re
-        raw = response.text.strip()
-        raw = re.sub(r"^```[a-z]*\n?", "", raw).rstrip("`").strip()
-        return json.loads(raw)
+        import json
 
-    except Exception as e:
-        st.error(f"שגיאה בפענוח התמונה: {e}")
-        return None
+        # מקבלים את הטקסט הנקי מהמודל
+        raw_text = response.text.strip()
+
+        # ניקוי בטוח של תגיות קוד אם גוגל הוסיף אותן במקרה
+        if raw_text.startswith("```"):
+        raw_text = raw_text.split("```")[1]
+        if raw_text.startswith("json"):
+        raw_text = raw_text[4:]
+        raw_text = raw_text.strip("` \n")
+
+        return json.loads(raw_text)
 
 # ─────────────────────────────────────────────
 # טעינת נתונים
