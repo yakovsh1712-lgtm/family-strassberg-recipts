@@ -185,7 +185,7 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
 
     try:
         # הגדרת המודל המוביל של גוגל לפענוח תמונות (Gemini 1.5 Flash)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
         # הכנת התמונה עבור גוגל
         image_parts = [
@@ -299,7 +299,7 @@ with tab2:
         )
 
                    # הגדרת המודל לצ'אט של גוגל
-        chat_model = genai.GenerativeModel('gemini-1.5-flash')
+        chat_model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
         with st.spinner("חושב..."):
             # הפיכת היסטוריית הצ'אט לפורמט שגוגל מבין
