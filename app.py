@@ -148,29 +148,29 @@ def image_to_base64(uploaded_file) -> tuple[str, str]:
 
 
 def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
-    """שליחת תמונה לגוגל ופענוח המתכון"""
-    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+      """שליחת תמונה לגוגל ופענוח המתכון""" 
+      client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
-    prompt = f"""
-    אנא פענח את המתכון שבתמונה (כולל אם הוא בכתב יד) והחזר **אך ורק** JSON **אך ורק** תקני בפורמט הבא (ללא טקסט נוסף)
-    {{
+      prompt = f"""
+      אנא פענח את המתכון שבתמונה (כולל אם הוא בכתב יד) והחזר **אך ורק** JSON **אך ורק** תקני בפורמט הבא (ללא טקסט נוסף)
+      {{
         "שם המתכון": "...",
         "קטגוריה": "...",
         "מצרכים": "...",
         "הוראות הכנה": "...",
         "מי העלה": "{uploader}"
-    }}
+      }}
 
-    הנחיות:
-    - קטגוריה: בחר מתוך: עיקרית, מרק, סלט, קינוח, אפייה, שתייה, אחר
-    - מצרכים: רשימה מפורדת בפסיקים
-    - הוראות הכנה: שלבים ברורים, מופרדים בפסיק אנכי (|) או ממוספרים
-    - אם חסר מידע - כתוב "לא צוין"
-    """
+      הנחיות:
+      - קטגוריה: בחר מתוך: עיקרית, מרק, סלט, קינוח, אפייה, שתייה, אחר
+      - מצרכים: רשימה מפורדת בפסיקים
+      - הוראות הכנה: שלבים ברורים, מופרדים בפסיק אנכי (|) או ממוספרים
+      - אם חסר מידע - כתוב "לא צוין"
+      """
 
-try:
-    from google.genai import types
-    response = client.models.generate_content(
+  try:
+      from google.genai import types
+      response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=[
             prompt,
@@ -188,7 +188,7 @@ try:
 
     return json.loads(raw_text)
 
-except Exception as e:
+  except Exception as e:
     st.error(f"שגיאה בעת ניתוח המתכון: {e}")
     return None
 
