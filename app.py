@@ -147,10 +147,10 @@ def image_to_base64(uploaded_file) -> tuple[str, str]:
     return b64, mime
 
 
-def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
+    def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
       """שליחת תמונה לגוגל ופענוח המתכון""" 
       client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-
+    
       prompt = f"""
       אנא פענח את המתכון שבתמונה (כולל אם הוא בכתב יד) והחזר **אך ורק** JSON **אך ורק** תקני בפורמט הבא (ללא טקסט נוסף)
       {{
@@ -160,15 +160,15 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
         "הוראות הכנה": "...",
         "מי העלה": "{uploader}"
       }}
-
+    
       הנחיות:
       - קטגוריה: בחר מתוך: עיקרית, מרק, סלט, קינוח, אפייה, שתייה, אחר
       - מצרכים: רשימה מפורדת בפסיקים
       - הוראות הכנה: שלבים ברורים, מופרדים בפסיק אנכי (|) או ממוספרים
       - אם חסר מידע - כתוב "לא צוין"
       """
-
-  try:
+    
+    try:
       from google.genai import types
       response = client.models.generate_content(
         model="gemini-2.5-flash",
@@ -177,7 +177,7 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
             types.Part.from_bytes(data=base64.b64decode(b64), mime_type=mime)
         ]
     )
-
+    
     import json
     raw_text = response.text.strip()
     if raw_text.startswith("```"):
@@ -185,10 +185,10 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
     if raw_text.startswith("json"):
         raw_text = raw_text[4:]
     raw_text = raw_text.strip("\n")
-
+    
     return json.loads(raw_text)
-
-  except Exception as e:
+    
+    except Exception as e:
     st.error(f"שגיאה בעת ניתוח המתכון: {e}")
     return None
 
