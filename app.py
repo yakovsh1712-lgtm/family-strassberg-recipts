@@ -6,7 +6,7 @@ import base64
 import os
 from google.oauth2.service_account import Credentials
 from datetime import datetime
-
+from google import genai
 import ssl
 import os
 os.environ['CURL_CA_BUNDLE'] = ''
@@ -160,8 +160,7 @@ def image_to_base64(uploaded_file) -> tuple[str, str]:
 
 
 def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
-    """שליחת תמונה לגוגל ופענוח המתכון"""
-        from google import genai
+        """שליחת תמונה לגוגל ופענוח המתכון"""
     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     
     prompt = f"""
