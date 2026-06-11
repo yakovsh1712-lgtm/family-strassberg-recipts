@@ -160,47 +160,53 @@ def image_to_base64(uploaded_file) -> tuple[str, str]:
 
 
 def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
-    """שליחת תמונה לקלוד ופענוח המתכון."""
-    client = get_anthropic_client()
+    """שליחת תמונה לגוגל ופענוח המתכון"""
+    import google.generativeai as genai
+    
+    # חיבור לגוגל באמצעות המפתח מה-Secrets
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    
     prompt = f"""
-אנא פענח את המתכון שבתמונה (כולל אם הוא בכתב יד) והחזר **אך ורק** JSON תקני בפורמט הבא (ללא טקסט נוסף):
-{{
-  "שם המתכון": "...",
-  "קטגוריה": "...",
-  "מצרכים": "...",
-  "הוראות הכנה": "...",
-  "מי העלה": "{uploader}"
-}}
+    תקני בפורמט הבא (ללא טקסט נוסף) JSON **אך ורק** אנא פענח את המתכון שבתמונה (כולל אם הוא בכתב יד) והחזר **אך ורק**
+    {{
+        "שם המתכון": "...",
+        "קטגוריה": "...",
+        "מצרכים": "...",
+        "הוראות הכנה": "...",
+        "מי העלה": "{uploader}"
+    }}
+    
+    הנחיות:
+    - קטגוריה: בחר מתוך: עיקרית, מרק, סלט, קינוח, אפייה, שתייה, אחר
+    - מצרכים: רשימה מפורדת בפסיקים
+    - הוראות הכנה: שלבים ברורים, מופרדים בפסיק אנכי (|) או ממוספרים
+    - אם חסר מידע - כתוב "לא צוין"
+    """
 
-הנחיות:
-- קטגוריה: בחר מ: עיקרית, מרק, סלט, קינוח, אפייה, שתייה, אחר
-- מצרכים: רשימה מופרדת בפסיקים
-- הוראות הכנה: שלבים ברורים, מופרדים בפסיק אנכי (|) או ממוספרים
-- אם חסר מידע — כתוב "לא צוין"
-"""
     try:
-        msg = client.messages.create(
-            model="claude-3.5-sonnet",
-            max_tokens=1500,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
-                        {"type": "text", "text": prompt},
-                    ],
-                }
-            ],
-        )
+        # הגדרת המודל המוביל של גוגל לפענוח תמונות (Gemini 1.5 Flash)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # הכנת התמונה עבור גוגל
+        image_parts = [
+            {
+                "mime_type": mime,
+                "data": b64
+            }
+        ]
+        
+        # שליחת הבקשה
+        response = model.generate_content([prompt, image_parts[0]])
+        
         import json, re
-        raw = msg.content[0].text.strip()
-        # נקה ```json אם קיים
+        raw = response.text.strip()
+        # ניקוי תגיות ```json אם קיימות
         raw = re.sub(r"^```[a-z]*\n?", "", raw).rstrip("`").strip()
         return json.loads(raw)
+        
     except Exception as e:
         st.error(f"שגיאה בפענוח התמונה: {e}")
         return None
-
 
 # ─────────────────────────────────────────────
 # טעינת נתונים
@@ -292,22 +298,23 @@ with tab2:
             unsafe_allow_html=True,
         )
 
-    with st.form("chat_form", clear_on_submit=True):
-        user_input = st.text_input("הקלד שאלה...", placeholder="למשל: יש לי עוף ותפוחי אדמה, מה אפשר לבשל?", label_visibility="collapsed")
-        submitted = st.form_submit_button("שלח ➤")
-
-    if submitted and user_input.strip():
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-
-        client = get_anthropic_client()
+                   # הגדרת המודל לצ'אט של גוגל
+        chat_model = genai.GenerativeModel('gemini-1.5-flash')
+        
         with st.spinner("חושב..."):
-            response = client.messages.create(
-                model="claude-3.5-sonnet",
-                max_tokens=1000,
-                system=system_prompt,
-                messages=st.session_state.chat_history,
-            )
-        bot_reply = response.content[0].text
+            # הפיכת היסטוריית הצ'אט לפורמט שגוגל מבין
+            gemini_history = []
+            for m in st.session_state.chat_history[:-1]:
+                role = "user" if m["role"] == "user" else "model"
+                gemini_history.append({"role": role, "parts": [m["content"]]})
+            
+            # פתיחת שיחת צ'אט והעברת ההיסטוריה
+            chat = chat_model.start_chat(history=gemini_history)
+            
+            # שליחת ההודעה האחרונה לקבלת תשובה
+            response = chat.send_message(user_input)
+            bot_reply = response.text
+
         st.session_state.chat_history.append({"role": "assistant", "content": bot_reply})
         st.rerun()
 
