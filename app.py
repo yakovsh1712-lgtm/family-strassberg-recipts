@@ -161,10 +161,8 @@ def image_to_base64(uploaded_file) -> tuple[str, str]:
 
 def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
     """שליחת תמונה לגוגל ופענוח המתכון"""
-    import google.generativeai as genai
-    
-    # חיבור לגוגל באמצעות המפתח מה-Secrets
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        from google import genai
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     
     prompt = f"""
     תקני בפורמט הבא (ללא טקסט נוסף) JSON **אך ורק** אנא פענח את המתכון שבתמונה (כולל אם הוא בכתב יד) והחזר **אך ורק**
@@ -196,7 +194,11 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
         ]
         
         # שליחת הבקשה
-        response = model.generate_content([prompt, image_parts[0]])
+            response = client.models.generate_content(
+    model='gemini-1.5-flash',
+    contents=[prompt, {"mime_type": mime, "data": b64}]
+)
+    
         
         import json, re
         raw = response.text.strip()
@@ -299,20 +301,11 @@ with tab2:
         )
 
                    # הגדרת המודל לצ'אט של גוגל
-        chat_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-        
-        with st.spinner("חושב..."):
-            # הפיכת היסטוריית הצ'אט לפורמט שגוגל מבין
-            gemini_history = []
-            for m in st.session_state.chat_history[:-1]:
-                role = "user" if m["role"] == "user" else "model"
-                gemini_history.append({"role": role, "parts": [m["content"]]})
-            
-            # פתיחת שיחת צ'אט והעברת ההיסטוריה
-            chat = chat_model.start_chat(history=gemini_history)
-            
-            # שליחת ההודעה האחרונה לקבלת תשובה
-            response = chat.send_message(user_input)
+                with st.spinner("חושב..."):
+            response = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=user_input
+            )
             bot_reply = response.text
 
         st.session_state.chat_history.append({"role": "assistant", "content": bot_reply})
