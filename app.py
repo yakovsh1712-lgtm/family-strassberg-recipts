@@ -168,23 +168,30 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
     - אם חסר מידע - כתוב "לא צוין"
     """
 
-    try:
-        from google.genai import types
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[
-                prompt,
-                types.Part.from_bytes(data=base64.b64decode(b64), mime_type=mime)
-            ]
-        )
-        import json
-        raw_text = response.text.strip()
-        if raw_text.startswith("```"):
-            raw_text = raw_text.split("```")[1]
-            if raw_text.startswith("json"):
-                raw_text = raw_text[4:]
-            raw_text = raw_text.strip("` \n")
-        return json.loads(raw_text)
+try:
+    from google.genai import types
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[
+            prompt,
+            types.Part.from_bytes(data=base64.b64decode(b64), mime_type=mime)
+        ]
+    )
+
+    import json
+    raw_text = response.text.strip()
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("```")[1]
+    if raw_text.startswith("json"):
+        raw_text = raw_text[4:]
+    raw_text = raw_text.strip("\n")
+
+    return json.loads(raw_text)
+
+except Exception as e:
+    st.error(f"שגיאה בעת ניתוח המתכון: {e}")
+    return None
+
         
 # ─────────────────────────────────────────────
 # טעינת נתונים
