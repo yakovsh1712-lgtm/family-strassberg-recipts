@@ -77,7 +77,6 @@ def load_recipes() -> pd.DataFrame:
     """טעינת מתכונים מ-Google Sheets (CSV ציבורי)."""
     try:
         df = pd.read_csv(SHEET_URL)
-        # וידוא שכל העמודות קיימות
         for col in COLUMNS:
             if col not in df.columns:
                 df[col] = ""
@@ -88,19 +87,8 @@ def load_recipes() -> pd.DataFrame:
         return pd.DataFrame(columns=COLUMNS)
 
 
-def get_anthropic_client() -> anthropic.Anthropic:
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        st.error("❌ מפתח ANTHROPIC_API_KEY לא מוגדר. הגדר אותו כ-environment variable.")
-        st.stop()
-    return anthropic.Anthropic(api_key=api_key)
-
-
 def get_gspread_client():
-    """
-    התחברות ל-Google Sheets לצורך כתיבה.
-    נדרש קובץ service_account.json או משתנה סביבה GOOGLE_SERVICE_ACCOUNT_JSON.
-    """
+    """התחברות ל-Google Sheets לצורך כתיבה."""
     import json
     sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
     if sa_json:
@@ -160,11 +148,11 @@ def image_to_base64(uploaded_file) -> tuple[str, str]:
 
 
 def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
-        """שליחת תמונה לגוגל ופענוח המתכון"""
+    """שליחת תמונה לגוגל ופענוח המתכון"""
     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-    
+
     prompt = f"""
-    תקני בפורמט הבא (ללא טקסט נוסף) JSON **אך ורק** אנא פענח את המתכון שבתמונה (כולל אם הוא בכתב יד) והחזר **אך ורק**
+    אנא פענח את המתכון שבתמונה (כולל אם הוא בכתב יד) והחזר **אך ורק** JSON **אך ורק** תקני בפורמט הבא (ללא טקסט נוסף)
     {{
         "שם המתכון": "...",
         "קטגוריה": "...",
@@ -172,7 +160,7 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
         "הוראות הכנה": "...",
         "מי העלה": "{uploader}"
     }}
-    
+
     הנחיות:
     - קטגוריה: בחר מתוך: עיקרית, מרק, סלט, קינוח, אפייה, שתייה, אחר
     - מצרכים: רשימה מפורדת בפסיקים
@@ -181,30 +169,16 @@ def parse_recipe_from_image(b64: str, mime: str, uploader: str) -> dict | None:
     """
 
     try:
-        # הגדרת המודל המוביל של גוגל לפענוח תמונות (Gemini 1.5 Flash)
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-        
-        # הכנת התמונה עבור גוגל
-        image_parts = [
-            {
-                "mime_type": mime,
-                "data": b64
-            }
-        ]
-        
-        # שליחת הבקשה
-            response = client.models.generate_content(
-    model='gemini-1.5-flash',
-    contents=[prompt, {"mime_type": mime, "data": b64}]
-)
-    
-        
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=[prompt, {"mime_type": mime, "data": b64}]
+        )
+
         import json, re
         raw = response.text.strip()
-        # ניקוי תגיות ```json אם קיימות
         raw = re.sub(r"^```[a-z]*\n?", "", raw).rstrip("`").strip()
         return json.loads(raw)
-        
+
     except Exception as e:
         st.error(f"שגיאה בפענוח התמונה: {e}")
         return None
@@ -239,7 +213,6 @@ with tab1:
         categories = ["הכל"] + sorted(df_recipes[COL_CATEGORY].unique().tolist())
         chosen_cat = st.selectbox("סנן לפי קטגוריה", categories)
 
-    # סינון
     filtered = df_recipes.copy()
     if chosen_cat != "הכל":
         filtered = filtered[filtered[COL_CATEGORY] == chosen_cat]
@@ -266,7 +239,6 @@ with tab1:
                 with c2:
                     st.markdown("**👨‍🍳 הוראות הכנה**")
                     instructions = row[COL_INSTRUCTIONS]
-                    # ניסיון לפצל לשלבים
                     steps = [s.strip() for s in instructions.replace("|", "\n").split("\n") if s.strip()]
                     if len(steps) > 1:
                         for i, step in enumerate(steps, 1):
@@ -290,7 +262,6 @@ with tab2:
 
     system_prompt = recipes_to_system_prompt(df_recipes)
 
-    # הצגת היסטוריה
     for msg in st.session_state.chat_history:
         role_label = "👤 אתה" if msg["role"] == "user" else "🤖 עוזר"
         css_class = "chat-bubble-user" if msg["role"] == "user" else "chat-bubble-bot"
@@ -299,11 +270,16 @@ with tab2:
             unsafe_allow_html=True,
         )
 
-                   # הגדרת המודל לצ'אט של גוגל
-                with st.spinner("חושב..."):
+    user_input = st.chat_input("שאל משהו על המתכונים...")
+    if user_input:
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+
+        with st.spinner("חושב..."):
+            client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+            full_prompt = system_prompt + "\n\nשאלת המשתמש: " + user_input
             response = client.models.generate_content(
                 model='gemini-1.5-flash',
-                contents=user_input
+                contents=full_prompt
             )
             bot_reply = response.text
 
@@ -319,7 +295,7 @@ with tab2:
 # ══════════════════════════════════════════════
 with tab3:
     st.subheader("📸 העלאת מתכון מתמונה")
-    st.caption("העלה תמונה של מתכון (גם בכתב יד!) — קלוד יפענח ויוסיף אוטומטית לספר המשפחתי")
+    st.caption("העלה תמונה של מתכון (גם בכתב יד!) — Gemini יפענח ויוסיף אוטומטית לספר המשפחתי")
 
     uploader_name = st.text_input("שמך (מי מעלה?)", placeholder="לדוגמה: סבתא רחל")
     uploaded_file = st.file_uploader("בחר תמונה", type=["jpg", "jpeg", "png", "webp", "heic"])
@@ -331,7 +307,7 @@ with tab3:
             if not uploader_name.strip():
                 st.warning("אנא הכנס את שמך לפני ההעלאה.")
             else:
-                with st.spinner("קלוד מפענח את המתכון... ⏳"):
+                with st.spinner("Gemini מפענח את המתכון... ⏳"):
                     uploaded_file.seek(0)
                     b64, mime = image_to_base64(uploaded_file)
                     parsed = parse_recipe_from_image(b64, mime, uploader_name.strip())
@@ -380,17 +356,12 @@ with tab3:
 
 2. **הענק הרשאות לגיליון:**
    - פתח את ה-Google Sheet שלך
-   - שתף אותו עם כתובת האימייל של ה-Service Account (client_email בקובץ ה-JSON)
+   - שתף אותו עם כתובת האימייל של ה-Service Account
    - בחר הרשאת **עורך**
 
-3. **הגדר משתני סביבה:**
-   ```bash
-   export ANTHROPIC_API_KEY="המפתח-שלך"
-   export GOOGLE_SERVICE_ACCOUNT_JSON='תוכן-קובץ-ה-JSON'
+3. **הגדר Streamlit Secrets:**
+   - הוסף ב-Streamlit Cloud תחת Settings > Secrets:
    ```
-
-4. **הרץ את האפליקציה:**
-   ```bash
-   streamlit run app.py
+   GEMINI_API_KEY = "המפתח-שלך"
    ```
 """)
